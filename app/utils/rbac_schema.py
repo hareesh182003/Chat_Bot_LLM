@@ -11,6 +11,7 @@ RBAC_POLICIES = {
         "reviews": ["GET", "POST", "PUT", "PATCH", "DELETE"],
         "payments": ["GET", "POST", "PUT", "PATCH"],
         "shippings": ["GET", "POST", "PUT", "PATCH"],
+        "all-tables": ["GET"],
         "tokens": ["GET", "POST", "DELETE"],
         "me": ["GET", "PATCH"],
     },

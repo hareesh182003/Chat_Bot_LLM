@@ -41,35 +41,39 @@ class UserSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         request = self.context.get("request")
 
+        # Permission checks (unchanged)
         if request and request.user.user_category == "editor":
-            # ❌ Editors can only update customers
             if instance.user_category in ["admin", "editor"]:
                 raise PermissionError("Editors can only update customers.")
-
-            # ❌ Editors cannot change user_category at all
             validated_data.pop("user_category", None)
 
-        # Customers also cannot change their category
         if request and request.user.user_category == "customer":
             if instance.id != request.user.id:
                 raise PermissionError("Customers can only update their own profile.")
             validated_data.pop("user_category", None)
 
+        # ✅ NEW: Auto-allow password change if must_change_password is True (forced reset)
+        allow_password_change = self.context.get("allow_password_change", False)
+        if instance.must_change_password:
+            allow_password_change = True  # Override for first-time reset
 
-        # ✅ Only allow password change via /me/
-        if request and not request.path.startswith("/api/me/"):
+        # Only discard password if not allowed
+        if not allow_password_change:
             validated_data.pop("password", None)
 
+        # Handle everything except password first
         password = validated_data.pop("password", None)
-        if password:
-            instance.set_password(password)
-            instance.must_change_password = False
-
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
 
+        # Handle password safely
+        if password:
+            instance.set_password(password)  # Hashes the password
+            instance.must_change_password = False  # Reset the flag
+
         instance.save()
         return instance
+
 
 
 

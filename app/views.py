@@ -163,7 +163,7 @@ class LLMActionView(APIView):
         jwt_token = auth_header.split(" ")[1] if auth_header.startswith("Bearer ") else None
 
         action_json = call_llm(prompt)
-        result = execute_action(action_json, user_role=user_role, jwt_token=jwt_token,  current_user=request.user)
+        result = execute_action(action_json, user_role=user_role, jwt_token=jwt_token, current_user=request.user, prompt=prompt)
 
         return Response({
             "user": request.user.username,
@@ -183,14 +183,54 @@ class CurrentUserView(APIView):
         return Response(serializer.data)
 
     def patch(self, request):
-        serializer = UserSerializer(
-            request.user, 
-            data=request.data, 
-            partial=True, 
-            context={"request": request}
-        )
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=400)
+        user = request.user
+        data = request.data.copy()
+
+        # only run role restriction if user_category is being updated
+        if "user_category" in data:
+            if user.user_category == "editor" and data.get("user_category") != "customer":
+                raise PermissionError("Editors can only update customers.")
+
+        serializer = UserSerializer(user, data=data, partial=True)
+        serializer.is_valid(raise_exception=True)
+
+        # ✅ Handle password update properly
+        if "password" in data and data["password"]:
+            user.set_password(data["password"])
+            user.must_change_password = False
+            user.save()
+            return Response(UserSerializer(user).data)
+
+        # ✅ For other fields
+        serializer.save()
+        return Response(serializer.data)
+
+
+
+
+class AllTablesView(APIView):
+    """Admin-only view that returns all tables' data serialized."""
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated, MustChangePasswordPermission]
+
+    def get(self, request):
+        # Only allow admin users
+        user = request.user
+        if getattr(user, 'user_category', None) != 'admin':
+            return Response({'detail': 'Admin access required.'}, status=403)
+
+        # Only return the table (model) names — not the full data — for admin overview
+        table_names = [
+            'users',
+            'categories',
+            'products',
+            'suppliers',
+            'inventories',
+            'orders',
+            'order_items',
+            'reviews',
+            'payments',
+            'shippings',
+        ]
+        return Response({'tables': table_names})
 

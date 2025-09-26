@@ -5,6 +5,7 @@ from .views import (
     OrderItemAPIView, ReviewAPIView, PaymentAPIView,
     ShippingAPIView, LLMActionView, RegisterView, CurrentUserView, chatbot_ui
 )
+from .views import AllTablesView
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
@@ -31,6 +32,7 @@ urlpatterns = [
     path("token/refresh/", TokenRefreshView.as_view(), name='token_refresh'),
     path("me/", CurrentUserView.as_view(), name="current-user"),
     path("chatbot/", chatbot_ui, name="chatbot-ui"),
+    path("all-tables/", AllTablesView.as_view(), name="all-tables"),
 
 ]
 
